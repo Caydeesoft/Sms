@@ -2,7 +2,7 @@
     "name": "caydeesoft/sms",
     "description": "Laravel package for the Safaricom premium rate service provider integration",
     "type": "library",
-    "license": "MIT",
+    "license": "MIT LICENSE",
     "autoload": {
         "psr-4": {
             "Caydeesoft\\Sms\\": "src/"

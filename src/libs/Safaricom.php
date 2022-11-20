@@ -1,12 +1,20 @@
 <?php
- namespace Caydeesoft\Sms\libs;
+ namespace Caydeesoft\Sms\Libs;
 
 class Safaricom implements SmsInterface
 	{
+		public $config;
 		
-	    public function __construct()
+	    public function __construct($env = 'production')
 		    {
-		      
+		      	if($env == 'production')
+			        {
+			            
+			        }
+		        else
+			        {
+			            
+			        }
 				   
 		    }
 		    
@@ -19,37 +27,16 @@ class Safaricom implements SmsInterface
 			{
 				try
 					{
-						$curl = curl_init();
-						curl_setopt( $curl, CURLOPT_URL, $this->cfg->accessTokenUrl );
-						curl_setopt( $curl, CURLOPT_HTTPHEADER, array(
-																				'Content-Type:application/json',
-																				'X-Requested-With:XMLHttpRequest'
-																			) );
+						$credentials    =   ['username' => $this->config['apiUsername'],'password' => $this->apiPassword];
+			            $data           =   Http::withHeaders(['Content-Type'=>'application/json','X-Requested-With'=>'XMLHttpRequest'])
+								                ->withOptions(['verify' => dirname(__DIR__)."/Resources/cacert.pem", 'http_errors' => false])
+								                ->post($this->config['safaricom.token_link'],$credentials);
 
-						$curl_post_data =   array(
-													'username' => $this->apiUsername,
-													'password' => $this->apiPassword
-												);
-
-						$data_string    =   json_encode( $curl_post_data );
-
-						curl_setopt( $curl, CURLOPT_SSL_VERIFYHOST, false );
-						curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
-						curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-						curl_setopt( $curl, CURLOPT_POST, true );
-						curl_setopt( $curl, CURLOPT_POSTFIELDS, $data_string );
-
-						$curl_response = curl_exec( $curl );
-						if ( $curl_response )
-							{
-								$results = json_decode( $curl_response );
-
-								return $results->token;
-							}
-						else
-							{
-								return 'Curl error: ' . curl_error( $curl );
-							}
+			            if($data->successful())
+				            {
+				                return $data->object();
+				            }
+			
 					}
 				catch(Exception $e)
 					{
@@ -60,60 +47,22 @@ class Safaricom implements SmsInterface
 			{
 				try
 					{
-						$ch = curl_init();
-						$headers    =   array(
-												'Content-Type:application/json',
-												'X-Requested-With:XMLHttpRequest'
-											);
-						$body       =   json_encode([]);
-						curl_setopt( $ch, CURLOPT_URL, $this->cfg->refreshTokenUrl);
-						curl_setopt( $ch, CURLOPT_HTTPHEADER,   $headers);
-						curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true);
-						curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );
-						curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
-						curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, 'GET' );
-						curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
-						curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-						$result = curl_exec($ch);
-						curl_close($ch);
-						if ( $result )
-							{
-								$results = json_decode( $result );
+						
+			            $data           =   Http::withHeaders(['Content-Type'=>'application/json','X-Requested-With'=>'XMLHttpRequest'])
+								                ->withOptions(['verify' => dirname(__DIR__)."/Resources/cacert.pem", 'http_errors' => false])
+								                ->get($this->config['safaricom.refreshtoken_link'],$credentials);
 
-								return $results->token;
-							}
-						else
-							{
-								return 'Curl error: ' . curl_error( $ch );
-							}
+			            if($data->successful())
+				            {
+				                return $data->object();
+				            }
 					}
 				catch(Exception $e)
 					{
 						return $e->getMessage();
 					}
 			}
-		public function curlRequest($url,$data)
-			{
-				try
-					{
-						$authorization = "X-Authorization: Bearer " . $this->getAccessTokens();
-						$ch = curl_init();
-						curl_setopt($ch, CURLOPT_URL, $url);
-						curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json', $authorization));
-						curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-						curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-						curl_setopt($ch, CURLOPT_POST, true);
-						curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-						$result = curl_exec($ch);
-						curl_close($ch);
-						return json_decode($result);
-					}
-				catch (Exception $e)
-					{
-						return array('error'=>$e->getMessage());
-					}
-			}
+		
 		public function bulkSms($new_sdp_data)
 			{
 				$json_data  =   array(
