@@ -15,6 +15,7 @@
         }
     ],
     "require": {
-        "Illuminate\\Support\\ServiceProvider"
+        "php": "^7.4|^8.0|^8.1",
+        "illuminate/support": "^7|^8|^9"
     }
 }

@@ -1,5 +1,10 @@
 <?php
  namespace Caydeesoft\Sms\Libs;
+ use Caydeesoft\Sms\Traits\Helper;
+ use Illuminate\Support\Facades\Cache;
+ use Illuminate\Support\Facades\Http;
+ use Illuminate\Support\Facades\Log;
+ use Illuminate\Support\Facades\Cookie;
 
 class Safaricom implements SmsInterface
 	{
@@ -20,17 +25,21 @@ class Safaricom implements SmsInterface
 		    
 		public function token()
 			{
-
+                if(!Cache::has('token'))
+                    {
+                        Cache::put('token',$this->getAccessTokens(),30*100);
+                    }
+                return Cache::get('token')->token;
 			} 
 
 		public function getAccessTokens()
 			{
 				try
 					{
-						$credentials    =   ['username' => $this->config['apiUsername'],'password' => $this->apiPassword];
+						$credentials    =   ['username' => $this->config['apiUsername'],'password' => $this->config['apiPassword']];
 			            $data           =   Http::withHeaders(['Content-Type'=>'application/json','X-Requested-With'=>'XMLHttpRequest'])
 								                ->withOptions(['verify' => dirname(__DIR__)."/Resources/cacert.pem", 'http_errors' => false])
-								                ->post($this->config['safaricom.token_link'],$credentials);
+								                ->post($this->config['token_link'],$credentials);
 
 			            if($data->successful())
 				            {
@@ -38,7 +47,7 @@ class Safaricom implements SmsInterface
 				            }
 			
 					}
-				catch(Exception $e)
+				catch(\HttpException $e)
 					{
 						return $e->getMessage();
 					}
@@ -48,16 +57,16 @@ class Safaricom implements SmsInterface
 				try
 					{
 						
-			            $data           =   Http::withHeaders(['Content-Type'=>'application/json','X-Requested-With'=>'XMLHttpRequest'])
+			            $data           =   Http::withHeaders(['Content-Type'=>'application/json','X-Requested-With'=>'XMLHttpRequest','X-Authorization'=> 'Bearer '.$refreshToken])
 								                ->withOptions(['verify' => dirname(__DIR__)."/Resources/cacert.pem", 'http_errors' => false])
-								                ->get($this->config['safaricom.refreshtoken_link'],$credentials);
+								                ->get($this->config['refreshtoken_link']);
 
 			            if($data->successful())
 				            {
 				                return $data->object();
 				            }
 					}
-				catch(Exception $e)
+				catch(\HttpException $e)
 					{
 						return $e->getMessage();
 					}
@@ -76,19 +85,14 @@ class Safaricom implements SmsInterface
 																"msisdn"            =>  $new_sdp_data['msisdn'],
 																"message"           =>  $new_sdp_data['message'],
 																"uniqueId"          =>  $new_sdp_data['msgid'],
-																"actionResponseURL" =>  $this->cfg->sendSmsCallback
+																"actionResponseURL" =>  $this->config['sendsms_callback']
 															)
 													]
 									);
+				$result     =   Helper::invoke_server($this->config['bulk_link'],$json_data,$this->token());
 
-				$data       =   json_encode($json_data);
-				echo $data;
-				$result     =   $this->curlRequest($this->cfg->BulkSendUrl,$data);
-				if ($result)
-					{
-						return $result;
-					}
-				return FALSE;
+				return $result;
+
 			}
 		public function sendSms($dt)
 			{
@@ -98,7 +102,7 @@ class Safaricom implements SmsInterface
 									[ 'name' => 'Msisdn'    , 'value' => $dt['phone']     ],
 									[ 'name' => 'OfferCode' , 'value' => $dt['offercode'] ],
 									[ 'name' => 'Content'   , 'value' => $dt['msg']       ],				
-					                [ 'name' => 'CpId'      , 'value' => $this->cpid 	  ]
+					                [ 'name' => 'CpId'      , 'value' => $this->config['cpid'] 	  ]
 								);
 
 				$json_data  =   array(
@@ -108,14 +112,10 @@ class Safaricom implements SmsInterface
 										"requestParam"      =>  array("data" => $data)
 
 									);
-			
-				$result     =   $this->curlRequest($this->cfg->sendSmsUrl,json_encode($json_data));
-				
-				if ($result)
-					{
-						return $result;
-					}
-				return FALSE;
+
+                return  Helper::invoke_server($this->config['sendsms_link'],$json_data,$this->token());
+
+
 				
 				
 			}
@@ -125,7 +125,7 @@ class Safaricom implements SmsInterface
 									[ 'name' => 'OfferCode' , 'value' => $dt['offercode'] ],
 									[ 'name' => 'Msisdn'    , 'value' => $dt['phone']     ],
 									[ "name" => "Language"  , 'value' => 'English'    ],
-									[ 'name' => 'CpId'      , 'value' => $this->cpid      ]
+									[ 'name' => 'CpId'      , 'value' => $this->config['cpid']      ]
 								);
 				$json_data  =   array(
 										"requestId"         =>  $dt['id'],
@@ -134,24 +134,24 @@ class Safaricom implements SmsInterface
 										"operation"         =>  "ACTIVATE",
 										"requestParam"      =>  array("data" => $data)
 									);
-				return $this->curlRequest($this->cfg->subscriptionUrl,json_encode($json_data));
+                return  Helper::invoke_server($this->config['subscription_link'],$json_data,$this->token());
 			}
 		public function unsubscription($dt)
 			{
 				$data   =   array(
 									[ 'name' => 'OfferCode' , 'value' => $dt['offercode'] ],
 									[ 'name' => 'Msisdn'    , 'value' => $dt['phone']     ],
-									[ 'name' => 'CpId'      , 'value' => $this->cpid      ]
+									[ 'name' => 'CpId'      , 'value' => $this->config['cpid']      ]
 								);
 				$json_data  =   array(
 										"requestId"         =>  $dt['id'],
 										"requestTimeStamp"  =>  date('YmdHis'),
 										"channel"           =>  "SMS",
-										"sourceAddress"     =>  $this->ci->input->ip_address(),
+										"sourceAddress"     =>  $dt['ipaddress'],
 										"operation"         =>  "DEACTIVATE",
 										"requestParam"      =>  array("data" => $data)
 									);
-				return $this->curlRequest($this->cfg->unSubscriptionUrl,json_encode($json_data));
+                return  Helper::invoke_server($this->config['subscription_link'],$json_data,$this->token());
 			}
 		public function cpNotification($dt,$additionaldata = NULL)
 			{
