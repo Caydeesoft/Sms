@@ -1,0 +1,20 @@
+{
+    "name": "caydeesoft/sms",
+    "description": "Laravel package for the Safaricom premium rate service provider integration",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Caydeesoft\\Sms\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Dennis Kiptugen",
+            "email": "dennis.kiptoo@caydeesoft.com"
+        }
+    ],
+    "require": {
+        "Illuminate\\Support\\ServiceProvider"
+    }
+}
